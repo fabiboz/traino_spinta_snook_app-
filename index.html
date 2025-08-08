@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Valutazione Traino (Snook-Ciriello)</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png" />
+  <meta name="theme-color" content="#0057b8" />
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    input, select { margin-bottom: 10px; display: block; }
+    .ok { color: green; font-weight: bold; }
+    .warning { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Valutazione del Rischio - Traino (Metodo Snook-Ciriello)</h1>
+
+  <label>Sesso:
+    <select id="sesso">
+      <option value="maschio">Maschio</option>
+      <option value="femmina">Femmina</option>
+    </select>
+  </label>
+
+  <label>Altezza mani (cm): <input type="number" id="altezza" value="95"></label>
+  <label>Distanza (m): <input type="number" id="distanza" value="2"></label>
+  <label>Frequenza (es: 6s, 1m, 8h): <input type="text" id="frequenza" value="1m"></label>
+  <label>Forza Iniziale (kg): <input type="number" id="fi" step="0.1"></label>
+  <label>Forza Mantenimento (kg): <input type="number" id="fm" step="0.1"></label>
+
+  <button onclick="valuta()">Valuta Rischio</button>
+
+  <div id="output"></div>
+
+  <script>
+    const snookData = {
+  "maschio": {
+    "65": {
+      "2": {
+        "6s": {
+          "FI": 14,
+          "FM": 8
+        },
+        "12s": {
+          "FI": 16,
+          "FM": 10
+        },
+        "1m": {
+          "FI": 18,
+          "FM": 12
+        },
+        "2m": {
+          "FI": 18,
+          "FM": 13
+        },
+        "5m": {
+          "FI": 19,
+          "FM": 15
+        },
+        "30m": {
+          "FI": 19,
+          "FM": 15
+        },
+        "8h": {
+          "FI": 23,
+          "FM": 18
+        }
+      },
+      "7.5": {
+        "15s": {
+          "FI": 19,
+          "FM": 10
+        },
+        "22s": {
+          "FI": 22,
+          "FM": 13
+        },
+        "1m": {
+          "FI": 25,
+          "FM": 16
+        },
+        "2m": {
+          "FI": 25,
+          "FM": 17
+        },
+        "5m": {
+          "FI": 27,
+          "FM": 19
+        },
+        "30m": {
+          "FI": 27,
+          "FM": 20
+        },
+        "8h": {
+          "FI": 32,
+          "FM": 24
+        }
+      }
+    },
+    "95": {
+      "2": {
+        "6s": {
+          "FI": 22,
+          "FM": 10
+        },
+        "12s": {
+          "FI": 25,
+          "FM": 13
+        },
+        "1m": {
+          "FI": 28,
+          "FM": 16
+        },
+        "2m": {
+          "FI": 28,
+          "FM": 17
+        },
+        "5m": {
+          "FI": 30,
+          "FM": 19
+        },
+        "30m": {
+          "FI": 30,
+          "FM": 20
+        },
+        "8h": {
+          "FI": 36,
+          "FM": 25
+        }
+      }
+    }
+  },
+  "femmina": {
+    "60": {
+      "2": {
+        "6s": {
+          "FI": 11,
+          "FM": 5
+        },
+        "12s": {
+          "FI": 13,
+          "FM": 6
+        },
+        "1m": {
+          "FI": 15,
+          "FM": 7
+        },
+        "2m": {
+          "FI": 15,
+          "FM": 8
+        },
+        "5m": {
+          "FI": 17,
+          "FM": 9
+        },
+        "30m": {
+          "FI": 17,
+          "FM": 10
+        },
+        "8h": {
+          "FI": 21,
+          "FM": 13
+        }
+      },
+      "7.5": {
+        "15s": {
+          "FI": 16,
+          "FM": 6
+        },
+        "22s": {
+          "FI": 18,
+          "FM": 7
+        },
+        "1m": {
+          "FI": 20,
+          "FM": 8
+        },
+        "2m": {
+          "FI": 20,
+          "FM": 9
+        },
+        "5m": {
+          "FI": 22,
+          "FM": 10
+        },
+        "30m": {
+          "FI": 22,
+          "FM": 11
+        },
+        "8h": {
+          "FI": 26,
+          "FM": 14
+        }
+      }
+    },
+    "90": {
+      "2": {
+        "6s": {
+          "FI": 13,
+          "FM": 6
+        },
+        "12s": {
+          "FI": 15,
+          "FM": 7
+        },
+        "1m": {
+          "FI": 17,
+          "FM": 8
+        },
+        "2m": {
+          "FI": 17,
+          "FM": 9
+        },
+        "5m": {
+          "FI": 19,
+          "FM": 10
+        },
+        "30m": {
+          "FI": 19,
+          "FM": 11
+        },
+        "8h": {
+          "FI": 23,
+          "FM": 14
+        }
+      }
+    }
+  }
+};
+
+    function roundAlt(altezza, sesso) {
+      const maschi = [65, 95, 145];
+      const femmine = [60, 90, 135];
+      const arr = sesso === "maschio" ? maschi : femmine;
+      return arr.reduce((prev, curr) => Math.abs(curr - altezza) < Math.abs(prev - altezza) ? curr : prev);
+    }
+
+    function roundDist(d) {
+      const poss = [2, 7.5, 15, 30];
+      return poss.reduce((p, c) => Math.abs(c - d) < Math.abs(p - d) ? c : p);
+    }
+
+    function valuta() {
+      const sesso = document.getElementById("sesso").value;
+      const altezza = parseInt(document.getElementById("altezza").value);
+      const distanza = parseFloat(document.getElementById("distanza").value);
+      const frequenza = document.getElementById("frequenza").value.toLowerCase();
+      const fi = parseFloat(document.getElementById("fi").value);
+      const fm = parseFloat(document.getElementById("fm").value);
+
+      const hRound = roundAlt(altezza, sesso);
+      const dRound = roundDist(distanza);
+
+      const dati = snookData[sesso]?.[hRound]?.[dRound]?.[frequenza];
+
+      if (!dati) {
+        document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Dati non disponibili per questa combinazione.</p>";
+        return;
+      }
+
+      let msg = `<p>Limiti FI/FM per ${
+        hRound
+      }cm, ${dRound}m, ${
+        frequenza
+      } (p75): <strong>${
+        dati.FI
+      } / ${dati.FM} kg</strong></p>`;
+      msg += `<p>Valori inseriti: <strong>${
+        fi
+      } / ${fm} kg</strong></p>`;
+
+      if (fi > dati.FI || fm > dati.FM) {
+        msg += "<p class='warning'>🚨 RISCHIO: superati i limiti consigliati.</p>";
+      } else {
+        msg += "<p class='ok'>✅ OK: valori entro i limiti.</p>";
+      }
+
+      document.getElementById("output").innerHTML = msg;
+    }
+  </script>
+</body>
+</html>
