@@ -242,44 +242,42 @@
       return poss.reduce((p, c) => Math.abs(c - d) < Math.abs(p - d) ? c : p);
     }
 
-    function valuta() {
-      const sesso = document.getElementById("sesso").value;
-      const altezza = parseInt(document.getElementById("altezza").value);
-      const distanza = parseFloat(document.getElementById("distanza").value);
-      const frequenza = document.getElementById("frequenza").value.toLowerCase();
-      const fi = parseFloat(document.getElementById("fi").value);
-      const fm = parseFloat(document.getElementById("fm").value);
+    <script>
+  function valuta() {
+    const sesso = document.getElementById("sesso").value;
+    const altezza = parseInt(document.getElementById("altezza").value);
+    const distanza = parseFloat(document.getElementById("distanza").value);
+    const frequenza = document.getElementById("frequenza").value.toLowerCase();
+    const fi = parseFloat(document.getElementById("fi").value);
+    const fm = parseFloat(document.getElementById("fm").value);
 
-      const hRound = roundAlt(altezza, sesso);
-      const dRound = roundDist(distanza);
+    const hRound = roundAlt(altezza, sesso);
+    const dRound = roundDist(distanza);
 
-      const dati = snookData[sesso]?.[hRound]?.[dRound]?.[frequenza];
-
-      if (!dati) {
-        document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Dati non disponibili per questa combinazione.</p>";
-        return;
-      }
-
-      let msg = `<p>Limiti FI/FM per ${
-        hRound
-      }cm, ${dRound}m, ${
-        frequenza
-      } (p75): <strong>${
-        dati.FI
-      } / ${dati.FM} kg</strong></p>`;
-      msg += `<p>Valori inseriti: <strong>${
-        fi
-      } / ${fm} kg</strong></p>`;
-
-      if (fi > dati.FI || fm > dati.FM) {
-        msg += "<p class='warning'>🚨 RISCHIO: superati i limiti consigliati.</p>";
-      } else {
-        msg += "<p class='ok'>✅ OK: valori entro i limiti.</p>";
-      }
-
-      document.getElementById("output").innerHTML = msg;
+    const freqPoints = snookData[sesso]?.[hRound]?.[dRound];
+    if (!freqPoints) {
+      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Nessun dato disponibile per altezza e distanza selezionate.</p>";
+      return;
     }
-  
+
+    const dati = interpolate(frequenza, freqPoints);
+    if (!dati) {
+      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Frequenza non interpolabile tra valori noti.</p>";
+      return;
+    }
+
+    let msg = `<p><em>(Interpolato)</em> Limiti FI/FM stimati per ${hRound}cm, ${dRound}m, ${frequenza}: <strong>${dati.FI} / ${dati.FM} kg</strong></p>`;
+    msg += `<p>Valori inseriti: <strong>${fi} / ${fm} kg</strong></p>`;
+
+    if (fi > dati.FI || fm > dati.FM) {
+      msg += "<p class='warning'>🚨 RISCHIO: superati i limiti consigliati.</p>";
+    } else {
+      msg += "<p class='ok'>✅ OK: valori entro i limiti.</p>";
+    }
+
+    document.getElementById("output").innerHTML = msg;
+  }
+</script>
 function findAdjacentPoints(input, available) {
   const x = parseFloat(input.replace(/[a-z]/g, ''));
   const keys = Object.keys(available).map(k => {
