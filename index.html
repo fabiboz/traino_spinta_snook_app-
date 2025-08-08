@@ -279,6 +279,73 @@
 
       document.getElementById("output").innerHTML = msg;
     }
-  </script>
+  
+function interpolate(input, points) {
+  // Ordina i punti disponibili (es. frequenze, altezze, distanze)
+  const keys = Object.keys(points).map(k => {
+    const v = parseFloat(k.replace(/[a-z]/g, ''));
+    return { raw: k, val: v };
+  }).sort((a, b) => a.val - b.val);
+
+  const x = parseFloat(input.replace(/[a-z]/g, ''));
+
+  // Se esatto, ritorna direttamente
+  for (const k of keys) {
+    if (k.val === x) return points[k.raw];
+  }
+
+  // Trova i due estremi tra cui interpolare
+  let lower = null, upper = null;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (x > keys[i].val && x < keys[i + 1].val) {
+      lower = keys[i];
+      upper = keys[i + 1];
+      break;
+    }
+  }
+
+  if (!lower || !upper) return null;
+
+  const ratio = (x - lower.val) / (upper.val - lower.val);
+  const fi = points[lower.raw].FI + (points[upper.raw].FI - points[lower.raw].FI) * ratio;
+  const fm = points[lower.raw].FM + (points[upper.raw].FM - points[lower.raw].FM) * ratio;
+
+  return { FI: Math.round(fi), FM: Math.round(fm) };
+}
+
+
+    const sesso = document.getElementById("sesso").value;
+    const altezza = parseInt(document.getElementById("altezza").value);
+    const distanza = parseFloat(document.getElementById("distanza").value);
+    const frequenza = document.getElementById("frequenza").value.toLowerCase();
+    const fi = parseFloat(document.getElementById("fi").value);
+    const fm = parseFloat(document.getElementById("fm").value);
+
+    const hRound = roundAlt(altezza, sesso);
+    const dRound = roundDist(distanza);
+
+    const freqPoints = snookData[sesso]?.[hRound]?.[dRound];
+    if (!freqPoints) {
+      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Nessun dato disponibile per questa altezza/distanza.</p>";
+      return;
+    }
+
+    const dati = interpolate(frequenza, freqPoints);
+    if (!dati) {
+      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Impossibile interpolare: frequenza fuori intervallo noto.</p>";
+      return;
+    }
+
+    let msg = `<p><em>(Interpolato)</em> Limiti FI/FM stimati per ${hRound}cm, ${dRound}m, ${frequenza}: <strong>${dati.FI} / ${dati.FM} kg</strong></p>`;
+    msg += `<p>Valori inseriti: <strong>${fi} / ${fm} kg</strong></p>`;
+
+    if (fi > dati.FI || fm > dati.FM) {
+      msg += "<p class='warning'>🚨 RISCHIO: superati i limiti consigliati.</p>";
+    } else {
+      msg += "<p class='ok'>✅ OK: valori entro i limiti.</p>";
+    }
+
+    document.getElementById("output").innerHTML = msg;
+</script>
 </body>
 </html>
