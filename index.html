@@ -280,37 +280,43 @@
       document.getElementById("output").innerHTML = msg;
     }
   
-function interpolate(input, points) {
-  // Ordina i punti disponibili (es. frequenze, altezze, distanze)
-  const keys = Object.keys(points).map(k => {
-    const v = parseFloat(k.replace(/[a-z]/g, ''));
-    return { raw: k, val: v };
+function findAdjacentPoints(input, available) {
+  const x = parseFloat(input.replace(/[a-z]/g, ''));
+  const keys = Object.keys(available).map(k => {
+    const val = parseFloat(k.replace(/[a-z]/g, ''));
+    return { key: k, val };
   }).sort((a, b) => a.val - b.val);
 
-  const x = parseFloat(input.replace(/[a-z]/g, ''));
-
-  // Se esatto, ritorna direttamente
-  for (const k of keys) {
-    if (k.val === x) return points[k.raw];
-  }
-
-  // Trova i due estremi tra cui interpolare
   let lower = null, upper = null;
-  for (let i = 0; i < keys.length - 1; i++) {
-    if (x > keys[i].val && x < keys[i + 1].val) {
-      lower = keys[i];
-      upper = keys[i + 1];
+  for (let i = 0; i < keys.length; i++) {
+    if (x === keys[i].val) return [keys[i], keys[i]];
+    if (x < keys[i].val) {
+      upper = keys[i];
+      lower = keys[i - 1];
       break;
     }
   }
 
-  if (!lower || !upper) return null;
+  if (!lower) lower = keys[0];
+  if (!upper) upper = keys[keys.length - 1];
+  return [lower, upper];
+}
 
-  const ratio = (x - lower.val) / (upper.val - lower.val);
-  const fi = points[lower.raw].FI + (points[upper.raw].FI - points[lower.raw].FI) * ratio;
-  const fm = points[lower.raw].FM + (points[upper.raw].FM - points[lower.raw].FM) * ratio;
+function interpolate(input, points) {
+  const [low, high] = findAdjacentPoints(input, points);
+  const x = parseFloat(input.replace(/[a-z]/g, ''));
+  if (low.val === high.val) return points[low.key];
 
-  return { FI: Math.round(fi), FM: Math.round(fm) };
+  const fiLow = points[low.key].FI;
+  const fmLow = points[low.key].FM;
+  const fiHigh = points[high.key].FI;
+  const fmHigh = points[high.key].FM;
+
+  const ratio = (x - low.val) / (high.val - low.val);
+  return {
+    FI: Math.round(fiLow + (fiHigh - fiLow) * ratio),
+    FM: Math.round(fmLow + (fmHigh - fmLow) * ratio)
+  };
 }
 
 
@@ -326,13 +332,13 @@ function interpolate(input, points) {
 
     const freqPoints = snookData[sesso]?.[hRound]?.[dRound];
     if (!freqPoints) {
-      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Nessun dato disponibile per questa altezza/distanza.</p>";
+      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Nessun dato disponibile per altezza e distanza selezionate.</p>";
       return;
     }
 
     const dati = interpolate(frequenza, freqPoints);
     if (!dati) {
-      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Impossibile interpolare: frequenza fuori intervallo noto.</p>";
+      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Frequenza non interpolabile tra valori noti.</p>";
       return;
     }
 
