@@ -4,9 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Valutazione Traino (Snook-Ciriello)</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon-192.png" />
-  <meta name="theme-color" content="#0057b8" />
   <style>
     body { font-family: sans-serif; padding: 20px; }
     input, select { margin-bottom: 10px; display: block; }
@@ -26,7 +23,7 @@
 
   <label>Altezza mani (cm): <input type="number" id="altezza" value="95"></label>
   <label>Distanza (m): <input type="number" id="distanza" value="2"></label>
-  <label>Frequenza (es: 6s, 1m, 8h): <input type="text" id="frequenza" value="1m"></label>
+  <label>Frequenza (es: 1m, 5m): <input type="text" id="frequenza" value="1m"></label>
   <label>Forza Iniziale (kg): <input type="number" id="fi" step="0.1"></label>
   <label>Forza Mantenimento (kg): <input type="number" id="fm" step="0.1"></label>
 
@@ -36,320 +33,89 @@
 
   <script>
     const snookData = {
-  "maschio": {
-    "65": {
-      "2": {
-        "6s": {
-          "FI": 14,
-          "FM": 8
+      "maschio": {
+        "65": {
+          "2": { "1m": { "FI": 18, "FM": 12 }, "5m": { "FI": 19, "FM": 15 } },
+          "5": { "1m": { "FI": 20, "FM": 14 }, "5m": { "FI": 22, "FM": 17 } }
         },
-        "12s": {
-          "FI": 16,
-          "FM": 10
-        },
-        "1m": {
-          "FI": 18,
-          "FM": 12
-        },
-        "2m": {
-          "FI": 18,
-          "FM": 13
-        },
-        "5m": {
-          "FI": 19,
-          "FM": 15
-        },
-        "30m": {
-          "FI": 19,
-          "FM": 15
-        },
-        "8h": {
-          "FI": 23,
-          "FM": 18
+        "95": {
+          "2": { "1m": { "FI": 28, "FM": 16 }, "5m": { "FI": 30, "FM": 19 } },
+          "5": { "1m": { "FI": 31, "FM": 20 }, "5m": { "FI": 33, "FM": 22 } }
         }
       },
-      "7.5": {
-        "15s": {
-          "FI": 19,
-          "FM": 10
+      "femmina": {
+        "60": {
+          "2": { "1m": { "FI": 15, "FM": 7 }, "5m": { "FI": 17, "FM": 9 } },
+          "5": { "1m": { "FI": 16, "FM": 8 }, "5m": { "FI": 18, "FM": 10 } }
         },
-        "22s": {
-          "FI": 22,
-          "FM": 13
-        },
-        "1m": {
-          "FI": 25,
-          "FM": 16
-        },
-        "2m": {
-          "FI": 25,
-          "FM": 17
-        },
-        "5m": {
-          "FI": 27,
-          "FM": 19
-        },
-        "30m": {
-          "FI": 27,
-          "FM": 20
-        },
-        "8h": {
-          "FI": 32,
-          "FM": 24
+        "90": {
+          "2": { "1m": { "FI": 17, "FM": 8 }, "5m": { "FI": 19, "FM": 10 } },
+          "5": { "1m": { "FI": 18, "FM": 9 }, "5m": { "FI": 20, "FM": 11 } }
         }
       }
-    },
-    "95": {
-      "2": {
-        "6s": {
-          "FI": 22,
-          "FM": 10
-        },
-        "12s": {
-          "FI": 25,
-          "FM": 13
-        },
-        "1m": {
-          "FI": 28,
-          "FM": 16
-        },
-        "2m": {
-          "FI": 28,
-          "FM": 17
-        },
-        "5m": {
-          "FI": 30,
-          "FM": 19
-        },
-        "30m": {
-          "FI": 30,
-          "FM": 20
-        },
-        "8h": {
-          "FI": 36,
-          "FM": 25
+    };
+
+    function interpolateNumeric(x, x0, x1, y0, y1) {
+      return y0 + (y1 - y0) * ((x - x0) / (x1 - x0));
+    }
+
+    function getInterpolatedValue(data, sesso, altezza, distanza, frequenza) {
+      const heights = Object.keys(data[sesso]).map(Number).sort((a,b) => a - b);
+      const [h0, h1] = findBounds(altezza, heights);
+
+      const dists = Object.keys(data[sesso][h0]).map(Number).sort((a,b) => a - b);
+      const [d0, d1] = findBounds(distanza, dists);
+
+      const get = (h, d) => data[sesso][h][d][frequenza];
+
+      const A = get(h0, d0), B = get(h0, d1), C = get(h1, d0), D = get(h1, d1);
+      if (!A || !B || !C || !D) return null;
+
+      const fi1 = interpolateNumeric(distanza, d0, d1, A.FI, B.FI);
+      const fi2 = interpolateNumeric(distanza, d0, d1, C.FI, D.FI);
+      const fm1 = interpolateNumeric(distanza, d0, d1, A.FM, B.FM);
+      const fm2 = interpolateNumeric(distanza, d0, d1, C.FM, D.FM);
+
+      const FI = Math.round(interpolateNumeric(altezza, h0, h1, fi1, fi2));
+      const FM = Math.round(interpolateNumeric(altezza, h0, h1, fm1, fm2));
+
+      return { FI, FM };
+    }
+
+    function findBounds(val, arr) {
+      let low = arr[0], high = arr[arr.length - 1];
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] >= val) {
+          high = arr[i];
+          low = arr[i - 1] ?? arr[i];
+          break;
         }
       }
+      return [low, high];
     }
-  },
-  "femmina": {
-    "60": {
-      "2": {
-        "6s": {
-          "FI": 11,
-          "FM": 5
-        },
-        "12s": {
-          "FI": 13,
-          "FM": 6
-        },
-        "1m": {
-          "FI": 15,
-          "FM": 7
-        },
-        "2m": {
-          "FI": 15,
-          "FM": 8
-        },
-        "5m": {
-          "FI": 17,
-          "FM": 9
-        },
-        "30m": {
-          "FI": 17,
-          "FM": 10
-        },
-        "8h": {
-          "FI": 21,
-          "FM": 13
-        }
-      },
-      "7.5": {
-        "15s": {
-          "FI": 16,
-          "FM": 6
-        },
-        "22s": {
-          "FI": 18,
-          "FM": 7
-        },
-        "1m": {
-          "FI": 20,
-          "FM": 8
-        },
-        "2m": {
-          "FI": 20,
-          "FM": 9
-        },
-        "5m": {
-          "FI": 22,
-          "FM": 10
-        },
-        "30m": {
-          "FI": 22,
-          "FM": 11
-        },
-        "8h": {
-          "FI": 26,
-          "FM": 14
-        }
+
+    function valuta() {
+      const sesso = document.getElementById("sesso").value;
+      const altezza = parseFloat(document.getElementById("altezza").value);
+      const distanza = parseFloat(document.getElementById("distanza").value);
+      const frequenza = document.getElementById("frequenza").value;
+      const fi = parseFloat(document.getElementById("fi").value);
+      const fm = parseFloat(document.getElementById("fm").value);
+
+      const result = getInterpolatedValue(snookData, sesso, altezza, distanza, frequenza);
+      if (!result) {
+        document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Combinazione non disponibile o frequenza mancante.</p>";
+        return;
       }
-    },
-    "90": {
-      "2": {
-        "6s": {
-          "FI": 13,
-          "FM": 6
-        },
-        "12s": {
-          "FI": 15,
-          "FM": 7
-        },
-        "1m": {
-          "FI": 17,
-          "FM": 8
-        },
-        "2m": {
-          "FI": 17,
-          "FM": 9
-        },
-        "5m": {
-          "FI": 19,
-          "FM": 10
-        },
-        "30m": {
-          "FI": 19,
-          "FM": 11
-        },
-        "8h": {
-          "FI": 23,
-          "FM": 14
-        }
-      }
+
+      let msg = `<p><em>(Interpolato)</em> Limiti FI/FM stimati per ${altezza}cm, ${distanza}m, ${frequenza}: <strong>${result.FI} / ${result.FM} kg</strong></p>`;
+      msg += `<p>Valori inseriti: <strong>${fi} / ${fm} kg</strong></p>`;
+      msg += (fi > result.FI || fm > result.FM)
+        ? "<p class='warning'>🚨 RISCHIO: superati i limiti consigliati.</p>"
+        : "<p class='ok'>✅ OK: valori entro i limiti.</p>";
+
+      document.getElementById("output").innerHTML = msg;
     }
-  }
-};
-
-    function roundAlt(altezza, sesso) {
-      const maschi = [65, 95, 145];
-      const femmine = [60, 90, 135];
-      const arr = sesso === "maschio" ? maschi : femmine;
-      return arr.reduce((prev, curr) => Math.abs(curr - altezza) < Math.abs(prev - altezza) ? curr : prev);
-    }
-
-    function roundDist(d) {
-      const poss = [2, 7.5, 15, 30];
-      return poss.reduce((p, c) => Math.abs(c - d) < Math.abs(p - d) ? c : p);
-    }
-
-    
-  function valuta() {
-    const sesso = document.getElementById("sesso").value;
-    const altezza = parseInt(document.getElementById("altezza").value);
-    const distanza = parseFloat(document.getElementById("distanza").value);
-    const frequenza = document.getElementById("frequenza").value.toLowerCase();
-    const fi = parseFloat(document.getElementById("fi").value);
-    const fm = parseFloat(document.getElementById("fm").value);
-
-    const hRound = roundAlt(altezza, sesso);
-    const dRound = roundDist(distanza);
-
-    const freqPoints = snookData[sesso]?.[hRound]?.[dRound];
-    if (!freqPoints) {
-      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Nessun dato disponibile per altezza e distanza selezionate.</p>";
-      return;
-    }
-
-    const dati = interpolate(frequenza, freqPoints);
-    if (!dati) {
-      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Frequenza non interpolabile tra valori noti.</p>";
-      return;
-    }
-
-    let msg = `<p><em>(Interpolato)</em> Limiti FI/FM stimati per ${hRound}cm, ${dRound}m, ${frequenza}: <strong>${dati.FI} / ${dati.FM} kg</strong></p>`;
-    msg += `<p>Valori inseriti: <strong>${fi} / ${fm} kg</strong></p>`;
-
-    if (fi > dati.FI || fm > dati.FM) {
-      msg += "<p class='warning'>🚨 RISCHIO: superati i limiti consigliati.</p>";
-    } else {
-      msg += "<p class='ok'>✅ OK: valori entro i limiti.</p>";
-    }
-
-    document.getElementById("output").innerHTML = msg;
-  }
-
-function findAdjacentPoints(input, available) {
-  const x = parseFloat(input.replace(/[a-z]/g, ''));
-  const keys = Object.keys(available).map(k => {
-    const val = parseFloat(k.replace(/[a-z]/g, ''));
-    return { key: k, val };
-  }).sort((a, b) => a.val - b.val);
-
-  let lower = null, upper = null;
-  for (let i = 0; i < keys.length; i++) {
-    if (x === keys[i].val) return [keys[i], keys[i]];
-    if (x < keys[i].val) {
-      upper = keys[i];
-      lower = keys[i - 1];
-      break;
-    }
-  }
-
-  if (!lower) lower = keys[0];
-  if (!upper) upper = keys[keys.length - 1];
-  return [lower, upper];
-}
-
-function interpolate(input, points) {
-  const [low, high] = findAdjacentPoints(input, points);
-  const x = parseFloat(input.replace(/[a-z]/g, ''));
-  if (low.val === high.val) return points[low.key];
-
-  const fiLow = points[low.key].FI;
-  const fmLow = points[low.key].FM;
-  const fiHigh = points[high.key].FI;
-  const fmHigh = points[high.key].FM;
-
-  const ratio = (x - low.val) / (high.val - low.val);
-  return {
-    FI: Math.round(fiLow + (fiHigh - fiLow) * ratio),
-    FM: Math.round(fmLow + (fmHigh - fmLow) * ratio)
-  };
-}
-
-
-    const sesso = document.getElementById("sesso").value;
-    const altezza = parseInt(document.getElementById("altezza").value);
-    const distanza = parseFloat(document.getElementById("distanza").value);
-    const frequenza = document.getElementById("frequenza").value.toLowerCase();
-    const fi = parseFloat(document.getElementById("fi").value);
-    const fm = parseFloat(document.getElementById("fm").value);
-
-    const hRound = roundAlt(altezza, sesso);
-    const dRound = roundDist(distanza);
-
-    const freqPoints = snookData[sesso]?.[hRound]?.[dRound];
-    if (!freqPoints) {
-      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Nessun dato disponibile per altezza e distanza selezionate.</p>";
-      return;
-    }
-
-    const dati = interpolate(frequenza, freqPoints);
-    if (!dati) {
-      document.getElementById("output").innerHTML = "<p class='warning'>⚠️ Frequenza non interpolabile tra valori noti.</p>";
-      return;
-    }
-
-    let msg = `<p><em>(Interpolato)</em> Limiti FI/FM stimati per ${hRound}cm, ${dRound}m, ${frequenza}: <strong>${dati.FI} / ${dati.FM} kg</strong></p>`;
-    msg += `<p>Valori inseriti: <strong>${fi} / ${fm} kg</strong></p>`;
-
-    if (fi > dati.FI || fm > dati.FM) {
-      msg += "<p class='warning'>🚨 RISCHIO: superati i limiti consigliati.</p>";
-    } else {
-      msg += "<p class='ok'>✅ OK: valori entro i limiti.</p>";
-    }
-
-    document.getElementById("output").innerHTML = msg;
-</script>
+  </script>
 </body>
 </html>
